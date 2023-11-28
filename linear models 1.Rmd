@@ -158,8 +158,68 @@ Note that this works for nested models only. Comparing non-nested models is a co
 
 #Nesting data
 
-```{r}
+Fitting models to datasets NESTED within variables. We will use nest() to create a list column that contains datasets and fit separate models ot each one. Not the same as fitting nested models. 
 
+In the airbnb data, we might think that star ratings and room type affects price differently in each borough. One way to allow this kind of effect modification is through interaction terms:
+
+```{r}
+nyc_airbnb |> 
+  lm(price ~ stars * borough + room_type * borough, data = _) |> 
+  broom::tidy() |> 
+  knitr::kable(digits = 3)
 ```
 
+This works, but the output takes time to think through – the expected change in price comparing an entire apartment to a private room in Queens, for example, involves the main effect of room type and the Queens / private room interaction.
+
+Alternatively, we can nest *within boroughs* and fit *borough-specific models* associating **price with rating and room type**:
+
+```{r}
+nest_lm_res =
+  nyc_airbnb |> 
+  nest(data = -borough) |> 
+  mutate(
+    models = map(.x=data,~lm(price ~ stars + room_type, data = .x)),
+    results = map(models, broom::tidy)) |> 
+  select(-data, -models) |> 
+  unnest(results) |>
+  filter(term==)
+```
+
+The estimates here are the same as those in the model containing interactions, but are easier to extract from the output.
+
+STRATIFIED ANALYSES: 
+Fitting models to nested datasets is a way of performing stratified analyses. These have a tradeoff: stratified models make it easy to interpret covariate effects in each stratum, but don’t provide a mechanism for assessing the significance of differences across strata.
+
+```{r}
+nest_lm_res |> 
+  select(borough, term, estimate) |> 
+  mutate(term = fct_inorder(term)) |> 
+  pivot_wider(
+    names_from = term, values_from = estimate) |> 
+  knitr::kable(digits = 3)
+```
+
+Exploratory - we cannot conclude on significance between different boroughs because we have not fit this all into a joint model. We would need to do interaction terms and hypothesis testing to achieve this.
+
+
+Let's nest more:
+An even more extreme example is the assessment of neighborhood effects in Manhattan. The code chunk below fits neighborhood-specific models:
+
+```{r}
+manhattan_airbnb =
+  nyc_airbnb |> 
+  filter(borough == "Manhattan")
+#only looking at manhattan observations
+
+#creating nested model of manhattan airbnbs by neighborhood? relates price ot stars and room_type for each of 32 neighborhoods in manhattan
+
+manhattan_nest_lm_res =
+  manhattan_airbnb |> 
+  nest(data = -neighborhood) |> 
+  mutate(
+    models = map(.x=data,~lm(price ~ stars + room_type, data = .x)),
+    results = map(models, broom::tidy)) |> 
+  select(-data, -models) |> 
+  unnest(results)
+```
 
