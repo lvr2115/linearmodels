@@ -77,9 +77,66 @@ fit |>
   knitr::kable(digits = 3)
 ```
 
-#Diagnostics 
+#Be in control for factors. 
+
+R will treat categorical (factor) covariates appropriately and predictably: indicator variables are created for each non-reference category and included in your model, and the factor level is treated as the reference. As with ggplot, being careful with factors is therefore critical!
+
+This code restructures your reference category for borough and orders room_type, showing the new coefficients and results.
 
 ```{r}
+nyc_airbnb = 
+  nyc_airbnb |> 
+  mutate(
+    borough = fct_infreq(borough),
+    room_type = fct_infreq(room_type))
 
+fit = lm(price ~ stars + borough, data = nyc_airbnb)
+
+fit |> 
+  broom::tidy() |> 
+  select(term, estimate, p.value) |> 
+  mutate(term = str_replace(term, "^borough", "Borough: ")) |> 
+  knitr::kable(digits = 3)
+```
+
+#Diagnostics 
+
+Looking at fitted values, residuals, etc. to look at our model and assess. Regression diagnostics can identify issues in model fit, especially related to certain failures in model assumptions (normality, linear relationship, etc.). Examining residuals and fitted values are therefore an important component of any modeling exercise.
+
+The modelr package can be used to add residuals and fitted values to a dataframe. Adds column with a residual value. Plot shows distribution of residuals in each of the boroughs. 
+
+```{r}
+modelr::add_residuals(nyc_airbnb, fit) |>
+  ggplot(aes(x = borough, y = resid)) + geom_violin() +
+  ylim(-500, 1500)
+```
+
+This looks to give you a lot of extreme skewdness in the residuals in certain boroughs.
+
+```{r}
+nyc_airbnb |> 
+  modelr::add_residuals(fit) |> 
+  ggplot(aes(x = stars, y = resid)) + geom_point() +
+  facet_wrap(.~borough)
+```
+
+You can see residuals in price start getting more variability as stars (ratings) increase. 
+This example has some obvious issues, most notably the presence of extremely large outliers in price and a generally skewed residual distribution. 
+
+There are a few things we might try to do here – including creating a formal rule for the exclusion of outliers, transforming the price variable (e.g. using a log transformation), or fitting a model that is robust to outliers. Dealing with these issues isn’t really the purpose of this class, though, so we’ll note the issues and move on; shortly we’ll look at using the bootstrap for inference in cases like this, where standard approaches to inference may fail.
+
+(For what it’s worth, I’d probably use a combination of median regression, which is less sensitive to outliers than OLS, and maybe bootstrapping for inference. If that’s not feasible, I’d omit rentals with price over $1000 (< 0.5% of the sample) from the primary analysis and examine these separately. I usually avoid transforming the outcome, because the results model is difficult to interpret.)
+
+#Hypothesis testing
+
+```{r}
+fit |> 
+  broom::tidy() 
+```
+
+What about the significance of 'borough'? 
+```{r}
+fit_null = lm(price ~ stars + borough, data = nyc_airbnb)
+fit_alt = lm(price ~ stars + borough + room_type, data = nyc_airbnb)
 ```
 
