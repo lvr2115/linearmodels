@@ -133,10 +133,33 @@ There are a few things we might try to do here – including creating a formal r
 fit |> 
   broom::tidy() 
 ```
+Model summaries include results of t-tests for single coefficients, and are the standard way of assessing statistical significance.
 
 What about the significance of 'borough'? 
 ```{r}
+fit_null = lm(price ~ stars, data = nyc_airbnb) #null hypothesis is that borough is unassociated with price so do not include
+fit_alt = lm(price ~ stars + borough, data = nyc_airbnb) #alt hyp is that it is associated so do include
+
+anova(fit_null, fit_alt) |> #gives you ANOVA table comparing models
+  broom::tidy()
+```
+
+Testing multiple coefficients is somewhat more complicated. A useful approach is to use nested models, meaning that the terms in a simple “null” model are a subset of the terms in a more complex “alternative” model. The are formal tests for comparing the null and alternative models, even when several coefficients are added in the alternative model. Tests of this kind are required to assess the significance of a categorical predictor with more than two levels, as in the example below.
+
+```{r}
 fit_null = lm(price ~ stars + borough, data = nyc_airbnb)
 fit_alt = lm(price ~ stars + borough + room_type, data = nyc_airbnb)
+
+anova(fit_null, fit_alt) |> 
+  broom::tidy()
 ```
+
+Note that this works for nested models only. Comparing non-nested models is a common problem that requires other methods; we’ll see one approach in cross validation.
+
+#Nesting data
+
+```{r}
+
+```
+
 

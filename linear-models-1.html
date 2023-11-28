@@ -559,9 +559,41 @@ outcome, because the results model is difficult to interpret.)</p>
 ## 3 boroughBrooklyn    -49.8      2.23    -22.3  6.32e-109
 ## 4 boroughQueens      -77.0      3.73    -20.7  2.58e- 94
 ## 5 boroughBronx       -90.3      8.57    -10.5  6.64e- 26</code></pre>
+<p>Model summaries include results of t-tests for single coefficients,
+and are the standard way of assessing statistical significance.</p>
 <p>What about the significance of ‘borough’?</p>
+<pre class="r"><code>fit_null = lm(price ~ stars, data = nyc_airbnb) #null hypothesis is that borough is unassociated with price so do not include
+fit_alt = lm(price ~ stars + borough, data = nyc_airbnb) #alt hyp is that it is associated so do include
+
+anova(fit_null, fit_alt) |&gt; #gives you ANOVA table comparing models
+  broom::tidy()</code></pre>
+<pre><code>## # A tibble: 2 × 7
+##   term                    df.residual     rss    df   sumsq statistic    p.value
+##   &lt;chr&gt;                         &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;      &lt;dbl&gt;
+## 1 price ~ stars                 30528  1.03e9    NA NA            NA  NA        
+## 2 price ~ stars + borough       30525  1.01e9     3  2.53e7      256.  7.84e-164</code></pre>
+<p>Testing multiple coefficients is somewhat more complicated. A useful
+approach is to use nested models, meaning that the terms in a simple
+“null” model are a subset of the terms in a more complex “alternative”
+model. The are formal tests for comparing the null and alternative
+models, even when several coefficients are added in the alternative
+model. Tests of this kind are required to assess the significance of a
+categorical predictor with more than two levels, as in the example
+below.</p>
 <pre class="r"><code>fit_null = lm(price ~ stars + borough, data = nyc_airbnb)
-fit_alt = lm(price ~ stars + borough + room_type, data = nyc_airbnb)</code></pre>
+fit_alt = lm(price ~ stars + borough + room_type, data = nyc_airbnb)
+
+anova(fit_null, fit_alt) |&gt; 
+  broom::tidy()</code></pre>
+<pre><code>## # A tibble: 2 × 7
+##   term                        df.residual    rss    df   sumsq statistic p.value
+##   &lt;chr&gt;                             &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;
+## 1 price ~ stars + borough           30525 1.01e9    NA NA            NA       NA
+## 2 price ~ stars + borough + …       30523 9.21e8     2  8.42e7     1394.       0</code></pre>
+<p>Note that this works for nested models only. Comparing non-nested
+models is a common problem that requires other methods; we’ll see one
+approach in cross validation.</p>
+<p>#Nesting data</p>
 
 
 
