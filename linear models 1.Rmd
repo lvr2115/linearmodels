@@ -156,7 +156,7 @@ anova(fit_null, fit_alt) |>
 
 Note that this works for nested models only. Comparing non-nested models is a common problem that requires other methods; we’ll see one approach in cross validation.
 
-#Nesting data
+#Nesting data. This is really exploratory analysis using linear regression to show us that maybe we can see differences in subgroups per variables to guide our hypothesis testing. Only hypothesis testing can tell us what is a significant difference or not. 
 
 Fitting models to datasets NESTED within variables. We will use nest() to create a list column that contains datasets and fit separate models ot each one. Not the same as fitting nested models. 
 
@@ -181,8 +181,7 @@ nest_lm_res =
     models = map(.x=data,~lm(price ~ stars + room_type, data = .x)),
     results = map(models, broom::tidy)) |> 
   select(-data, -models) |> 
-  unnest(results) |>
-  filter(term==)
+  unnest(results)
 ```
 
 The estimates here are the same as those in the model containing interactions, but are easier to extract from the output.
