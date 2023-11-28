@@ -1,0 +1,85 @@
+---
+title: "linear models 1"
+author: "Laura Robles-Torres"
+date: "2023-11-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE}
+library(tidyverse)
+library(p8105.datasets)
+
+set.seed(1)
+```
+
+```{r}
+data("nyc_airbnb")
+
+nyc_airbnb = 
+  nyc_airbnb |> 
+  mutate(stars = review_scores_location / 2) |> 
+  rename(
+    borough = neighbourhood_group,
+    neighborhood = neighbourhood) |> 
+  filter(borough != "Staten Island") |> 
+  select(price, stars, borough, neighborhood, room_type)
+```
+
+#Fitting models 
+
+Fitting initial model of price (y - outcome) on rating "stars" (x1) and borough (x2) with this code:
+
+The lm function begins with the formula specification – outcome on the left of the ~ and predictors separated by + on the right. As we’ll see shortly, interactions between variables can be specified using *. You can also specify an intercept-only model (outcome ~ 1), a model with no intercept (outcome ~ 0 + ...), and a model using all available predictors (outcome ~ .).
+```{r}
+fit = lm(price ~ stars + borough, data = nyc_airbnb)
+```
+
+Let's look at the result. Does not give you a dataframe but does provide a object of class lm. Used the bronx as a reference group given categorical variable borough. 
+
+x0 = -70.41
+x1 = 31.99
+x2 = 40.50
+x3 = 90.25
+x4 = 13.21
+
+```{r, include=FALSE}
+fit
+summary(fit)
+summary(fit)$coef
+coef(fit)
+fitted.values(fit)
+```
+'summary' gives you residual information, coefficient estimates, std errors, and runs t-test for each coefficient, as well as R^2, adjusted R^2, the F-test 
+if you add '$coef' it will give you just the info re: to the coefficients.
+coef(fit) will give you just the coefficients.
+
+But...none of these are tidy. We use the broom package for that.The broom package has functions for obtaining a quick summary of the model and for cleaning up the coefficient table. 
+
+```{r}
+fit |> 
+  broom::glance() 
+
+fit |>
+  broom::tidy()
+
+```
+Both of these functions *produce data frames*, which makes it straightforward to include the results in subsequent steps.
+
+```{r}
+fit |> 
+  broom::tidy() |> 
+  select(term, estimate, p.value) |> 
+  mutate(term = str_replace(term, "^borough", "Borough: ")) |> 
+  knitr::kable(digits = 3)
+```
+
+#Diagnostics 
+
+```{r}
+
+```
+
