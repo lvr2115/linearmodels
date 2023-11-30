@@ -5,9 +5,7 @@ date: "2023-11-30"
 output: github_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+
 
 For many modern tools and in many applications, the emphasis lies on **prediction accuracy** rather than on statistical significance. In these cases, cross validation provides a way to compare the predictive performance of competing methods. 
 
@@ -15,7 +13,8 @@ In a basic case, you know what you need in your model and you're interested in o
 
 You have to figure out which model you want to use, based on the ones you can build. No model is 100% true. All we can do is approximate to a possible truth. 
 
-```{r load packages, message=FALSE}
+
+```r
 library(tidyverse)
 library(modelr)
 library(mgcv)
@@ -59,7 +58,8 @@ Cross validation is very general and can be used to compare possible models of a
 We’ll start with a simulated example. The code chunk below generates data under a non-linear model; I like to use this setting because “model complexity” is easiest for me to understand when I can see it.
 
 ## Simulate the data 
-```{r}
+
+```r
 nonlinear_df = 
   tibble(
     id = 1:100,
@@ -70,18 +70,21 @@ nonlinear_df =
 
 ## Look at the data on a graph
 We can see that it is not a straight line. 
-```{r}
 
+```r
 nonlinear_df |> 
   ggplot(aes(x = x, y = y)) + 
   geom_point()
 ```
 
+![](cross-validation_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+
 Split this data into training and test sets (using anti_join!!) and replot showing the split. 
 
 Our goal will be to use the training data (in black) to build candidate models, and then see how those models predict in the testing data (in red).
 
-```{r}
+
+```r
 train_df = sample_n(nonlinear_df, size=80) 
 test_df = anti_join(nonlinear_df, train_df, by = "id")
 #anti-join looks at rows that exist in non-linear df and not in my training df, the identifying column is ID.
@@ -91,45 +94,60 @@ ggplot(train_df, aes(x = x, y = y)) +
   geom_point(data = test_df, color = "red")
 ```
 
+![](cross-validation_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
+
 ## Fit 3 models.
 
-```{r}
+
+```r
 linear_model=lm(y~x, data=train_df) #lm is linear
 smooth_model=gam(y~s(x), data=train_df) #generalized additive model (gam), y is a smooth function of x
 wiggle_model=gam(y~s(x, k=30), sp=10e-6, data=train_df)
 ```
 ### Linear model
 
-```{r}
+
+```r
 train_df |>
   add_predictions(linear_model) |> 
   ggplot(aes(x=x, y=y)) + 
   geom_point() +
   geom_line(aes(y=pred), color="red")
+```
 
+![](cross-validation_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+```r
 #this linear model is throwing a line that doesnt really fit much
 ```
 
 ### Smooth model
 Intuitively what may have best predictive accuracy.
-```{r}
+
+```r
 train_df |> 
   add_predictions(smooth_model) |> 
   ggplot(aes(x = x, y = y)) + geom_point() + 
   geom_line(aes(y = pred), color = "red")
 ```
 
+![](cross-validation_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
 ### Wiggle model
 This model chases too much. Future data will not have the same outliers that make this wiggle model fit. 
-```{r}
+
+```r
 train_df |> 
   add_predictions(wiggle_model) |> 
   ggplot(aes(x = x, y = y)) + geom_point() + 
   geom_line(aes(y = pred), color = "red")
 ```
 
+![](cross-validation_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
 In a case like this, I can also use the handy modelr::gather_predictions function – this is, essentially, a short way of adding predictions for several models to a data frame and then “pivoting” so the result is a tidy, “long” dataset that’s easily plottable.
-```{r}
+
+```r
 train_df |> 
   gather_predictions(linear_model, smooth_model, wiggle_model) |>
   mutate(model = fct_inorder(model)) |> 
@@ -139,16 +157,37 @@ train_df |>
   facet_wrap(~model)
 ```
 
+![](cross-validation_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
 A quick visual inspection suggests that the linear model is too simple, the standard gam fit is pretty good, and the wiggly gam fit is too complex. Put differently, the linear model is too simple and, no matter what training data we use, will never capture the true relationship between variables – it will be consistently wrong due to its simplicity, and is therefore biased. The wiggly fit, on the other hand, is chasing data points and will change a lot from one training dataset to the the next – it will be consistently wrong due to its complexity, and is therefore highly variable. Both are bad!
 
 
 ## Now...let's look at prediction accuracy.
 
 ### Computing RMSE for each model
-```{r}
+
+```r
 rmse(linear_model, test_df)
+```
+
+```
+## [1] 0.8549585
+```
+
+```r
 rmse(smooth_model, test_df)
+```
+
+```
+## [1] 0.3614918
+```
+
+```r
 rmse(wiggle_model, test_df)
+```
+
+```
+## [1] 0.3901695
 ```
 
 [1] 0.8509912 - linear
@@ -161,7 +200,8 @@ The RMSEs are suggestive that both nonlinear models work better than the linear 
 
 'crossv_mc' preforms the training / testing split multiple times, AND stores the datasets using list columns.
 
-```{r} 
+
+```r
 cv_df = #creating a cross validation df
   crossv_mc(nonlinear_df, 100)  #100 cross validation runs 
 ```
@@ -169,11 +209,50 @@ cv_df = #creating a cross validation df
 However, it’s not compatible with 'gam', so we have to convert each training and testing dataset (and lose that nice memory-saving stuff that 'crossv_mc' does in the process) using the code below. It’s worth noting, though, that if all the models you want to fit use 'lm, you can skip this.
 
 
-```{r}
+
+```r
 cv_df |> pull(train) |> nth(1) |> as_tibble() #looking at the first element of that list. this is a sample from OG dataset. missing ID 2! its in the test df.
+```
 
+```
+## # A tibble: 79 × 3
+##       id      x      y
+##    <int>  <dbl>  <dbl>
+##  1     1 0.355   0.930
+##  2     2 0.233   0.871
+##  3     3 0.787  -1.45 
+##  4     4 0.287   0.875
+##  5     5 0.779  -1.55 
+##  6     6 0.380   0.534
+##  7     7 0.0966  0.299
+##  8     8 0.492   1.04 
+##  9     9 0.0421  0.335
+## 10    10 0.413   0.798
+## # ℹ 69 more rows
+```
+
+```r
 cv_df |> pull(test) |> nth(1) |> as_tibble()
+```
 
+```
+## # A tibble: 21 × 3
+##       id     x       y
+##    <int> <dbl>   <dbl>
+##  1    12 0.512  0.288 
+##  2    15 0.630 -0.235 
+##  3    16 0.203  0.933 
+##  4    19 0.234  1.14  
+##  5    26 0.579  0.0535
+##  6    28 0.920 -3.23  
+##  7    36 0.718 -0.959 
+##  8    38 0.728 -0.346 
+##  9    39 0.224  0.665 
+## 10    45 0.837 -1.95  
+## # ℹ 11 more rows
+```
+
+```r
 cv_df =
   cv_df |> 
   mutate(
@@ -188,7 +267,8 @@ I now have many training and testing datasets, and I’d like to fit my candidat
 
 Is it possible for me to fit the linear model to every element in my training column?
 
-```{r}
+
+```r
 cv_df = 
   cv_df |> 
   mutate(
@@ -209,7 +289,8 @@ cv_df =
 
 ##What do these results say about model choice?
 
-```{r}
+
+```r
 cv_df |> 
   select(starts_with("rmse")) |> 
   pivot_longer(
@@ -221,9 +302,12 @@ cv_df |>
   ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
 
+![](cross-validation_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
+
 What you have is the dist of RMSE across a 100 training/testing splits fitting the linear model, smooth and wiggle models. 
 
-```{r}
+
+```r
 cv_df |> 
   select(starts_with("rmse")) |> 
   pivot_longer(
@@ -235,20 +319,45 @@ cv_df |>
   summarize(avg_rmse = mean(rmse))
 ```
 
-# Child growth example
-```{r}
-child_growth = read_csv("./nepalese_children.csv")
+```
+## # A tibble: 3 × 2
+##   model  avg_rmse
+##   <chr>     <dbl>
+## 1 linear    0.796
+## 2 smooth    0.304
+## 3 wiggle    0.370
+```
 
+# Child growth example
+
+```r
+child_growth = read_csv("./nepalese_children.csv")
+```
+
+```
+## Rows: 2705 Columns: 5
+## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: ","
+## dbl (5): age, sex, weight, height, armc
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+```
+
+```r
 child_growth |> 
   ggplot(aes(x = weight, y = armc)) + 
   geom_point(alpha = .3)
 ```
 
+![](cross-validation_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+
 The plots suggests some non-linearity, especially at the low end of the weight distribution. We’ll try three models: a linear fit; a piecewise linear fit; and a smooth fit using gam. For the piecewise linear fit, we need to add a “change point term” to our dataframe. (Like additive models, for now it’s not critical that you understand everything about a piecewise linear fit – we’ll see a plot of the results soon, and the intuition from that is enough for our purposes.)
 
 How well does weight predict arm circum? 
 
-```{r}
+
+```r
 child_growth =
   child_growth |> 
   mutate(
@@ -257,13 +366,15 @@ child_growth =
 
 Let's fit models. 
 
-```{r}
+
+```r
 linear_mod= lm(armc~weight, data=child_growth)
 smooth_mod=gam(armc~s(weight), data=child_growth)
 piece_mod=lm(armc~weight+weight_cp, data=child_growth)
 ```
 
-```{r}
+
+```r
 child_growth |>
   gather_predictions(linear_mod, smooth_mod, piece_mod) |>
   ggplot(aes(x=weight, y=armc))+
@@ -271,11 +382,14 @@ child_growth |>
   facet_grid(.~model)
 ```
 
+![](cross-validation_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+
 ".~model means everything against the model 
 
 It’s not clear which is best – the linear model is maybe too simple, but the piecewise and non-linear models are pretty similar! Better check prediction errors using the same process as before – again, since I want to fit a gam model, I have to convert the resample objects produced by crossv_mc to dataframes, but wouldn’t have to do this if I only wanted to compare the linear and piecewise models.
 
-```{r}
+
+```r
 cv_df =
   crossv_mc(child_growth, 100) |> 
   mutate(
@@ -283,7 +397,8 @@ cv_df =
     test = map(test, as_tibble))
 ```
 
-```{r}
+
+```r
 cv_df = 
   cv_df |> 
   mutate(
@@ -299,7 +414,8 @@ cv_df =
 ```
 
 
-```{r}
+
+```r
 cv_df |> 
   select(starts_with("rmse")) |> 
   pivot_longer(
@@ -310,6 +426,8 @@ cv_df |>
   mutate(model = fct_inorder(model)) |> 
   ggplot(aes(x = model, y = rmse)) + geom_violin()
 ```
+
+![](cross-validation_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
 
 Based on these results, there’s clearly some improvement in predictive accuracy gained by allowing non-linearity – whether this is sufficient to justify a more complex model isn’t obvious, though. Among the non-linear models, the smooth fit from gam might be a bit better than the piecewise linear model. Which candidate model is best, though, depends a bit on the need to balance complexity with goodness of fit and interpretability. 
