@@ -1,0 +1,12 @@
+---
+title: "bootstrapping"
+author: "Laura Robles-Torres"
+date: "2023-11-30"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
