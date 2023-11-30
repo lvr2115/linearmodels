@@ -1,5 +1,66 @@
-bootstrapping
+Bootstrapping
 ================
 Laura Robles-Torres
 2023-11-30
 
+Bootstrapping is a popular resampling-based approach to statistical
+inference, and is helpful when usual statistical methods are intractable
+or inappropriate. The idea is to draw repeated samples from your
+original sample with replacement, thereby approximating the repeated
+sampling framework. Using list columns to store bootstrap samples is
+natural and provides a “tidy” approach to resampling-based inference.
+
+# Repeated sampling
+
+## Why?
+
+Repeated sampling is a conceptual framework that underlies most of
+statistics. If you want to know something about true pop. mean, you will
+draw a sample and compute a sample mean. If you understand what would
+happen with MULTIPLE same size samples from a population, you can say
+something about the distribution of your mean in your sample. The sample
+mean and dist. of it can be used to create a CI and make statements on
+what approximates the truth. The distribution of the sample mean
+converges to a normal distribution.
+
+Traditionally, the distribution of a sample statistic (sample mean, SLR
+coefficients, etc.) for repeated, random draws from a population has
+been established theoretically. These theoretical distributions make
+some assumptions about the underlying population from which samples are
+drawn, or depend on large sample sizes for asymptotic results. Normal
+distribution is known/assumed in those settings.
+
+In cases where the *assumptions aren’t met*, or *sample sizes aren’t
+large enough* for asymptotics to kick in, it is still necessary to make
+inferences using the sample statistic. In these cases, drawing
+repeatedly from the original population would be great – one could
+simple draw a lot of samples and look at the empirical (rather than
+theoretical) distribution. But, as we said in iteration and simulation,
+repeated sampling just doesn’t happen in the real world.
+
+I don’t know what distribution this follows but Im gonna repeat a sample
+a bunch of times and look at the distribution of what I’m interested to
+see what the confidence intervals, range, distribution of my data is.
+
+## What is it?
+
+The idea is to mimic repeated sampling with the one sample you have.
+Your sample is drawn at random from your population. A *bootstrap
+sample* is drawn from the one sample you do have. It has: - the same
+size as the original sample - is drawn with replacement. (You draw a
+person ID 4 into your bootstrap sample, and it can then go back into the
+original population and could be drawn again)
+
+You analyze this sample using whatever approach you want to apply and
+repeat.
+
+## How?
+
+Coding the bootstrap uses a function to: - draw a sample with
+replacement - analyze the sample - return object of interest and repeat
+this many times.
+
+We use list columns to keep track of the bootstrap samples, analyses and
+results in a single df.
+
+------------------------------------------------------------------------
